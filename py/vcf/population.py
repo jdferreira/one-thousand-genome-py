@@ -62,6 +62,20 @@ class Population:
         """
         
         return individual in self.individual_to_group
+    
+    
+    def get_labels(self, individuals: List[str]) -> List[str]:
+        labels = []
+        
+        for individual in individuals:
+            if self.has_individual(individual):
+                label = self.individual_to_group[individual]
+            else:
+                label = '???'
+            labels.append(label)
+        
+        return labels
+
 
 
 def parse_population(stream: TextIO) -> Population:
