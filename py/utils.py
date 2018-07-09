@@ -1,6 +1,7 @@
 import random
 import sys
 from typing import Iterable, List, Sequence, TextIO, Tuple, TypeVar
+from functools import lru_cache
 
 from vcf.predictor import PredictorFactory, PredictorJoaoFactory
 from vcf.population import Population, parse_population
@@ -15,6 +16,7 @@ __all__ = [
 
 T = TypeVar('T')
 
+@lru_cache()
 def process_variant(variant: str) -> float:
     # Get the genotype of this individual
     genotype = variant.split(':')[0]

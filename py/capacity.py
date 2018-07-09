@@ -1,4 +1,3 @@
-import random
 import sys
 from typing import Iterable, List, Sequence, TextIO, Tuple, TypeVar
 
@@ -14,17 +13,38 @@ def compute_capacity(stream: VCFStream, population: Population, repeats: int, ra
     
     labels = population.get_labels(individuals)
     
+    # Split once, since the call to `split` takes a lot of time to do for every
+    # polymorphism and repeat. We call for the number of repeats and apply the
+    # corresponding one, copying the same approach for all polymorphisms.
+    if repeats > 1:
+        train_target_indices_list = [
+            split(range(len(individuals)), split_index)
+            for _ in range(repeats)
+        ]
+        train_target_indices = [
+            (set(i), set(j))
+            for i, j in train_target_indices_list
+        ]
+    else:
+        train_target_indices = [
+            (set(range(i)), set(range(i)))
+            for i, _ in enumerate(individuals)
+        ]
+    
     for polymorphism in stream:
         accuracies: List[float] = []
         
-        for _ in range(repeats):
+        for repeat_idx in range(repeats):
             genotypes = (process_variant(i) for i in polymorphism.data_fields)
             to_split = zip(individuals, genotypes, labels)
             
-            if repeats == 1:
-                train = target = list(to_split)
-            else:
-                train, target = split(to_split, split_index)
+            train = []
+            target = []
+            for i, val in enumerate(to_split):
+                if i in train_target_indices[repeat_idx][0]:
+                    train.append(val)
+                if i in train_target_indices[repeat_idx][1]:
+                    target.append(val)
             
             _train_individuals, train_genotypes, train_labels = zip(*train)
             

@@ -1,4 +1,3 @@
-import random
 import sys
 from collections import defaultdict
 from typing import Dict, Iterable, List, Sequence, TextIO, Tuple, TypeVar
