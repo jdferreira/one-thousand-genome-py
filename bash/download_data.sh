@@ -12,7 +12,7 @@ prepare() {
 download() {
     awk 'length($0) > 0 && $0 !~ /^#/' "$HREFS" | while read line; do
         echo "$line"
-        curl -O "$DATADIR/$line"
+        (cd "$DATADIR"; curl -O "$line")
     done;
 }
 
