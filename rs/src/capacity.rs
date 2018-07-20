@@ -44,11 +44,10 @@ fn compute_capacity<S, PF>(
             .map(|(i, j)| (i.iter().cloned().collect(), j.iter().cloned().collect()))
             .collect();
     } else {
-        train_target_indices = individuals
-            .iter()
-            .enumerate()
-            .map(|(i, _)| ((0..i).collect(), (0..i).collect()))
-            .collect();
+        train_target_indices = vec![(
+            (0..individuals.len()).collect(),
+            (0..individuals.len()).collect(),
+        )];
     }
     
     let mut accuracies = Vec::with_capacity(repeats);

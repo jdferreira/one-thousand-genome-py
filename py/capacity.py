@@ -27,8 +27,7 @@ def compute_capacity(stream: VCFStream, population: Population, repeats: int, ra
         ]
     else:
         train_target_indices = [
-            (set(range(i)), set(range(i)))
-            for i, _ in enumerate(individuals)
+            (set(range(len(individuals))), set(range(len(individuals))))
         ]
     
     for polymorphism in stream:
