@@ -16,7 +16,8 @@ impl Population {
     }
 
     pub fn add_individual(&mut self, individual: String, group: String) {
-        self.individual_to_group.insert(individual, group);
+        self.individual_to_group.insert(individual.clone(), group.clone());
+        self.group_to_individuals.entry(group).or_default().push(individual);
     }
 
     pub fn group<Istr>(&self, individual: Istr) -> &str

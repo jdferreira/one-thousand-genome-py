@@ -73,8 +73,8 @@ impl VCFData {
     }
 
     pub fn genotypes(&self) -> impl Iterator<Item = &str> {
-        let end = self.ranges.len() - FIRST_DATA_COLUMN;
-        (0..end).map(move |idx| self.field(idx))
+        let range = FIRST_DATA_COLUMN..self.ranges.len();
+        range.map(move |idx| self.field(idx))
     }
 
     pub(crate) fn keep<I, T>(self, indices: I) -> VCFData
