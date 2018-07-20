@@ -1,14 +1,14 @@
 use vcf::population::Population;
 use vcf::predictor::{Predictor, PredictorFactory, PredictorJoaoFactory};
-use vcf::stream::MetadataReader;
+use vcf::stream::{MetadataReader, VCFData};
 
-use utils::{process_variant, split, mean, stdev};
+use utils::{mean, process_variant, split, stdev};
 
 // use itertools::Itertools;
 use std::collections::HashSet;
 
 fn compute_capacity<S, PF>(
-    mut stream: S,
+    stream: S,
     population: &Population,
     repeats: usize,
     ratio: f32,
@@ -28,9 +28,6 @@ fn compute_capacity<S, PF>(
 
     let split_index = (individuals.len() as f32 * ratio) as usize;
 
-    let to_split = 0..individuals.len();
-    let (train_idxs, target_idxs) = split(to_split, split_index);
-
     // Split once, since the call to `split` takes a lot of time to execute for
     // every polymorphism and every repeat. We call for the number of repeats
     // and apply the corresponding one, copying the same approach for all
@@ -49,26 +46,67 @@ fn compute_capacity<S, PF>(
             (0..individuals.len()).collect(),
         )];
     }
-    
-    let mut accuracies = Vec::with_capacity(repeats);
+
+    let worker = Worker {
+        repeats,
+        individuals: &individuals,
+        labels: &labels,
+        train_target_indices: &train_target_indices,
+        factory: &factory,
+    };
     
     for polymorphism in unfolded.stream {
-        accuracies.clear();
+        let identifier = polymorphism.identifier().to_string();
+        let (m, s) = worker.process_polymorphism(polymorphism);
+        if repeats == 1 {
+            println!("{}\t{}", identifier, m);
+        } else {
+            println!("{}\t{}\t{}", identifier, m, s)
+        }
+    }
+}
 
-        for repeat_idx in 0..repeats {
+struct Worker<'a, PF>
+where
+    PF: PredictorFactory + 'a,
+    <PF as PredictorFactory>::Predictor: Predictor<Prediction = f32>,
+{
+    repeats: usize,
+    individuals: &'a [String],
+    labels: &'a [String],
+    train_target_indices: &'a [(HashSet<usize>, HashSet<usize>)],
+    factory: &'a PF,
+}
+
+unsafe impl<'a, PF> Send for Worker<'a, PF>
+where
+    PF: PredictorFactory,
+    <PF as PredictorFactory>::Predictor: Predictor<Prediction = f32>,
+{}
+
+impl<'a, PF> Worker<'a, PF>
+where
+    PF: PredictorFactory,
+    <PF as PredictorFactory>::Predictor: Predictor<Prediction = f32>,
+{
+    fn process_polymorphism(&self, polymorphism: VCFData) -> (f32, f32) {
+        let mut accuracies = Vec::with_capacity(self.repeats);
+
+        for repeat_idx in 0..self.repeats {
             let genotypes = polymorphism
                 .genotypes()
                 .map(|s| process_variant(s).unwrap_or(0.0))
                 .collect::<Vec<_>>();
-            let to_split = izip!(&individuals, genotypes, &labels);
+            let to_split = izip!(self.individuals, genotypes, self.labels);
 
             let mut train = Vec::new();
             let mut target = Vec::new();
 
             for (i, val) in to_split.enumerate() {
-                if train_target_indices[repeat_idx].0.contains(&i) {
+                if self.train_target_indices[repeat_idx].0.contains(&i) {
                     train.push(val);
-                } else if train_target_indices[repeat_idx].1.contains(&i) {
+                }
+                if self.train_target_indices[repeat_idx].1.contains(&i) {
                     target.push(val);
                 }
             }
@@ -79,7 +117,7 @@ fn compute_capacity<S, PF>(
                 genotypes_and_labels.push((genotype, label.to_string()));
             }
 
-            let predictor = factory.build(genotypes_and_labels.iter().cloned());
+            let predictor = self.factory.build(genotypes_and_labels.iter().cloned());
             let mut count = 0.0;
             let total = target.len() as f32;
 
@@ -94,11 +132,13 @@ fn compute_capacity<S, PF>(
         }
 
         let m = mean(&accuracies);
-        if repeats == 1 {
-            println!("{}\t{:.5}", polymorphism.identifier(), m);
+        if self.repeats == 1 {
+            // println!("{}\t{:.5}", polymorphism.identifier(), m);
+            (m, 0.0)
         } else {
             let s = stdev(&accuracies);
-            println!("{}\t{:.5}\t{:.5}", polymorphism.identifier(), m, s);
+            // println!("{}\t{:.5}\t{:.5}", polymorphism.identifier(), m, s);
+            (m, s)
         }
     }
 }
@@ -122,7 +162,7 @@ pub fn main() -> ::std::io::Result<()> {
         from_text_stream(handle)
     };
 
-    compute_capacity(stream, &population, 1, 0.1, predictor_factory);
-    
+    compute_capacity(stream, &population, 20, 0.1, predictor_factory);
+
     Ok(())
 }
