@@ -1,0 +1,16 @@
+[package]
+name = "rs"
+version = "0.1.0"
+authors = ["João D. Ferreira <jotomicron@gmail.com>"]
+
+[features]
+debug = []
+default = ["debug"]
+
+[dependencies]
+itertools = "0.7.8"
+rand = "0.5.4"
+lazy_static = "1.0.1"
+
+[profile.release]
+debug = true
